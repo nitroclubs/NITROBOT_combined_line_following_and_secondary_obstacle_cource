@@ -1,3 +1,4 @@
+//Line_following_5_sensors
 #include <Arduino.h>
 
 // The rangefinders work well to show the distance to objects from around
@@ -52,23 +53,26 @@ const int WallFollowingSide = -90;     //Set: -90 for right wall following or +9
                                        //we will add this value to the servo position i.e. myservo.write(90 + WallFollowingSide);
                                        // in order to set to which side the servo should move (0 or 180 degrees)
 //Servo parameters
-const int FrontServoAngle = 90;
-//const int SideServoAngle = FrontServoAngle + WallFollowingSide; //(0 or 180 degrees)
 const int RightServoAngle = 0;
 const int LeftServoAngle = 180;
-const int FrontServoDelay = 150;
-const int SideServoDelay = 150;
+const int FrontServoAngle = 90;
+const int SideServoAngle = FrontServoAngle + WallFollowingSide; //(0 or 180 degrees)
+const int FrontServoDelay = 90;
+const int SideServoDelay = 90;
 
-const int LeftSpeed = 95;
-const int RightSpeed = 95;
+const int LeftSpeed =100; //да се подбере оптималната скорост на левия двигател
+const int RightSpeed =100; //да се подбере оптималната скорост на десния двигател
 
 int speedLeft = LeftSpeed;
 int speedRight = RightSpeed;
+int currentState = 0;
+
 bool getTurn = true;
 bool moveFront = true;
 bool lineFollower = true;
 
 Servo myservo;
+
 
 void moveForward();
 void moveBackward();
@@ -78,11 +82,7 @@ void stopMoving();
 float getDistance(int servoAngle, int delayAfterServoMovement); //read the Ultasonic Sensor pointing at the given servo angle
 float frontThreshold();
 
-int left();
-int mid();
-int right();
-int leftEdge();
-int rightEdge();
+
 
 //-----------------------------------------------
 
@@ -107,122 +107,210 @@ void setup()
   myservo.attach(ServoPin);
   myservo.write(90); //Move the servo to center position
 
-  speedLeft = LeftSpeed;
-  speedRight = RightSpeed;
-  moveForward();
-  //delay(4000);
+ // speedLeft = LeftSpeed;
+ // speedRight = RightSpeed;
+ // moveForward();
 }
 
 //---------------------------------------------------------
 
 void loop()
 {
-  float frontDistance;
+ float frontDistance;
   float rightSideDistance = 0.0;
   float leftSideDistance = 0.0;
 
   frontDistance = getDistance(FrontServoAngle, FrontServoDelay);
 
-  while (lineFollower)
-  {
+  
+ int leftEdge = digitalRead(LN_SENS_PIN_RIGHTEDGE);
+ int left = digitalRead(LN_SENS_PIN_RIGHT);
+ int mid = digitalRead(LN_SENS_PIN_MIDDLE);
+ int right = digitalRead(LN_SENS_PIN_LEFT);
+ int rightEdge = digitalRead(LN_SENS_PIN_LEFTEDGE);
 
-    if ((leftEdge() == 1) && (left() == 1) && (mid() == 0) && (right() == 1) && (rightEdge() == 1)) //                1 1 0 1 1
-    {
-      speedLeft = LeftSpeed;
-      speedRight = RightSpeed;
-      moveForward();
-    }
-    else if ((leftEdge() == 1) && (left() == 0) && (mid() == 0) && (right() == 1) && (rightEdge() == 1)) //           1 0 0 1 1
-    {
-      speedLeft = LeftSpeed * 0.4;
-      speedRight = RightSpeed * 1.0;
-      moveForward();
-    }
-    else if ((leftEdge() == 1) && (left() == 0) && (mid() == 1) && (right() == 1) && (rightEdge() == 1)) //         1 0 1 1 1
-    {
-      speedLeft = LeftSpeed * 0.3;
-      speedRight = RightSpeed * 1.6;
-      moveForward();
-    }
-    else if ((leftEdge() == 0) && (left() == 0) && (mid() == 1) && (right() == 1) && (rightEdge() == 1)) //       0 0 1 1 1
-    {
-      speedLeft = LeftSpeed * 0.2;
-      speedRight = RightSpeed * 2.0;
-      moveForward();
-    }
-    else if ((leftEdge() == 0) && (left() == 1) && (mid() == 1) && (right() == 1) && (rightEdge() == 1)) //     0 1 1 1 1
-    {
-      speedLeft = LeftSpeed * 0.1;
-      speedRight = RightSpeed * 2.6;
-      moveForward();
-    }
-    else if ((leftEdge() == 1) && (left() == 1) && (mid() == 0) && (right() == 0) && (rightEdge() == 1)) //           1 1 0 0 1
-    {
-      speedLeft = LeftSpeed * 1.0;
-      speedRight = RightSpeed * 0.4;
-      moveForward();
-      ;
-    }
-    else if ((leftEdge() == 1) && (left() == 1) && (mid() == 1) && (right() == 0) && (rightEdge() == 1)) //         1 1 1 0 1
-    {
-      speedLeft = LeftSpeed * 1.6;
-      speedRight = RightSpeed * 0.3;
-      moveForward();
-    }
-    else if ((leftEdge() == 1) && (left() == 1) && (mid() == 1) && (right() == 0) && (rightEdge() == 0)) //       1 1 1 0 0
-    {
-      speedLeft = LeftSpeed * 2.0;
-      speedRight = RightSpeed * 0.2;
-      moveForward();
-    }
-    else if ((leftEdge() == 1) && (left() == 1) && (mid() == 1) && (right() == 1) && (rightEdge() == 0)) //     1 1 1 1 0
-    {
-      speedLeft = LeftSpeed * 2.6;
-      speedRight = RightSpeed * 0.1;
-      moveForward();
-    }
-    else if (frontThreshold() < 13.0 && frontThreshold() > 1.0)
-    {
-      stopMoving(); //стоп
-      delay(2500);
-      speedLeft = LeftSpeed * 1.5; //въртене на дясно
-      speedRight = RightSpeed * 1.5;
-      turnRight();
-      delay(550);
-      speedLeft = LeftSpeed; //направо
-      speedRight = RightSpeed;
-      moveForward();
-      delay(600);
-      speedLeft = LeftSpeed * 1.5; // въртене на ляво
-      speedRight = RightSpeed * 1.5;
-      turnLeft();
-      delay(550);
-      speedLeft = LeftSpeed * 1.2; //направо
-      speedRight = RightSpeed * 1, 2;
-      moveForward();
-      delay(850);
-      speedLeft = LeftSpeed * 1.5; //въртене на ляво
-      speedRight = RightSpeed * 1.5;
-      turnLeft();
-      delay(380);
-      speedLeft = LeftSpeed * 1; //лек десен завой
-      speedRight = RightSpeed * 1;
-      while ((leftEdge() == 1) && (left() == 1) && (mid() == 1) && (right() == 1) && (rightEdge() == 1))
-      {
-        moveForward();
-      }
-      stopMoving();
-      delay(150);
-      turnRight();
-      delay(150);
-    }    
-    else if(((left() == 0) && (mid() == 1) && (right() == 0))|| 
-            ((leftEdge() == 0) &&(left() == 1) && (mid() == 1) && (right() == 0)&& (rightEdge() == 0))||
-            ((leftEdge() == 0) &&(left() == 0) && (mid() == 1) && (right() == 1)&& (rightEdge() == 0)))
-    {
-      lineFollower = false;
-    }
+ while (lineFollower)
+  {
+ 
+  if ((leftEdge == 0) && (left == 0) && (mid == 1) && (right == 0) && (rightEdge == 0)) //                0 0 1 0 0
+  {
+    currentState = 1;
+    Serial.println("case1");
   }
+  else if ((leftEdge == 0) && (left == 1) && (mid == 1) && (right == 0) && (rightEdge == 0)) //           0 1 1 0 0
+  {
+    currentState = 2;
+     Serial.println("case2");
+  }
+  else if ((leftEdge == 0) && (left == 1) && (mid == 0) && (right == 0) && (rightEdge == 0)) //         0 1 0 0 0
+  {
+    currentState = 3;
+     Serial.println("case3");
+  }
+  else if ((leftEdge == 1) && (left == 1) && (mid == 0) && (right == 0) && (rightEdge == 0)) //       1 1 0 0 0
+  {
+    currentState = 4;
+     Serial.println("case4");
+  }
+  else if ((leftEdge == 1) && (left == 0) && (mid == 0) && (right == 0) && (rightEdge == 0)) //     1 0 0 0 0
+  {
+    currentState = 5;
+     Serial.println("case5");    
+  }
+  else if ((leftEdge == 0) && (left == 0) && (mid == 1) && (right == 1) && (rightEdge == 0)) //           0 0 1 1 0
+  {
+    currentState = 6;
+     Serial.println("case6");
+  }
+  else if ((leftEdge == 0) && (left == 0) && (mid == 0) && (right == 1) && (rightEdge == 0)) //         0 0 0 1 0
+  {
+    currentState = 7;
+    Serial.println("case7");
+  }
+  else if ((leftEdge == 0) && (left == 0) && (mid == 0) && (right == 1) && (rightEdge == 1)) //       0 0 0 1 1
+  {
+    currentState = 8;
+     Serial.println("case8");
+  }
+  else if ((leftEdge == 0) && (left == 0) && (mid == 0) && (right == 0) && (rightEdge == 1)) //     0 0 0 0 1
+  {
+    currentState = 9;    
+    Serial.println("case9");
+  }
+  else if (((leftEdge == 1) && (left == 1) && (mid == 0) && (right == 1) && (rightEdge == 1))|| // 1 1 0 1 1
+          ((leftEdge == 1) && (left == 0) && (mid == 0) && (right == 1) && (rightEdge == 1))|| // 1 0 0 1 1
+          ((leftEdge == 1) && (left == 1) && (mid == 0) && (right == 0) && (rightEdge == 1))|| // 1 1 0 0 1
+          ((leftEdge == 1) && (left == 1) && (mid == 1) && (right == 0) && (rightEdge == 1))|| // 1 1 1 0 1
+          ((leftEdge == 1) && (left == 0) && (mid == 1) && (right == 1) && (rightEdge == 1)))  // 1 0 1 1 1
+ {
+   lineFollower = false;
+ }
+ else
+ {
+   moveForward();
+ }
+
+ if (frontThreshold()<10){
+   
+   stopMoving();   //стоп
+    delay(250);
+    speedLeft = 255;      
+    speedRight = 255;
+    turnRight();
+    delay(350);   //завой на дясно на 90 градуза (задава се продължителността на завоя)
+    speedLeft = LeftSpeed;      
+    speedRight = RightSpeed;
+    moveForward();  // придвижване 20 см напред (задава се продължителността на придвижването)
+    delay(750);
+    speedLeft = 255;    
+    speedRight = 255;
+    turnLeft();
+    delay(380);  //завой на ляво на 90 градуза (задава се продължителността на завоя)
+    speedLeft = LeftSpeed;      
+    speedRight = RightSpeed;
+    moveForward();
+    delay(1200);  // придвижване 30 см напред (задава се продължителността на придвижването)
+    speedLeft = 255;    
+    speedRight = 255;
+    turnLeft();  //завой на ляво на 80 градуза (задава се продължителността на завоя)
+    delay(300); 
+     stopMoving();
+     delay(100);
+     leftEdge = digitalRead(LN_SENS_PIN_RIGHTEDGE);
+     left = digitalRead(LN_SENS_PIN_RIGHT);
+     mid = digitalRead(LN_SENS_PIN_MIDDLE);
+    right = digitalRead(LN_SENS_PIN_LEFT);
+    rightEdge = digitalRead(LN_SENS_PIN_LEFTEDGE);
+   while ((leftEdge == 0) && (left == 0) && (mid ==0) && (right == 0) && (rightEdge == 0))
+   {
+    speedLeft = LeftSpeed;      
+    speedRight = RightSpeed;
+    moveForward(); 
+     leftEdge = digitalRead(LN_SENS_PIN_RIGHTEDGE);
+     left = digitalRead(LN_SENS_PIN_RIGHT);
+     mid = digitalRead(LN_SENS_PIN_MIDDLE);
+    right = digitalRead(LN_SENS_PIN_LEFT);
+    rightEdge = digitalRead(LN_SENS_PIN_LEFTEDGE); 
+    }
+     stopMoving();
+     delay(100);
+   speedLeft = 255;      //въртене на дясно
+    speedRight = 255;
+    turnRight();
+    delay(150);
+   }
+
+  switch (currentState)
+  {
+  case 1:
+    speedLeft = LeftSpeed;
+    speedRight = RightSpeed;
+    moveForward();
+    Serial.println("1");  
+    break;
+  case 2:
+    speedLeft = LeftSpeed * .6;
+    speedRight = 180;
+    moveForward();
+    Serial.println("2");
+    break;
+  case 3:
+    speedLeft = LeftSpeed * .4;
+    speedRight = 200;
+    moveForward();
+    Serial.println("3");
+    break;
+  case 4:
+    speedLeft = LeftSpeed * .3;
+    speedRight = 220;
+    Serial.println("4");
+    moveForward();
+    break;
+  case 5:
+    speedLeft = LeftSpeed * .2;
+    speedRight = 255;
+    moveForward();
+    Serial.println("5");    
+    break;
+  case 6:
+    speedLeft = 180;
+    speedRight = RightSpeed * .6;
+    moveForward();
+    Serial.println("6");
+    break;
+  case 7:
+    speedLeft = 200;
+    speedRight = RightSpeed * .4;    
+    moveForward();
+    Serial.println("7");
+    break;
+  case 8:
+    speedLeft = 220;
+    speedRight = RightSpeed * .3;
+    moveForward();
+    Serial.println("8");
+    break;
+  case 9:
+    speedLeft = 255;
+    speedRight = RightSpeed * .2;
+    moveForward();
+     Serial.println("9");
+    break;
+  case 10:
+    stopMoving();  
+     delay(1000);
+    Serial.println("10");
+    break;
+  default:
+    break;
+  }
+ leftEdge = digitalRead(LN_SENS_PIN_RIGHTEDGE);
+ left = digitalRead(LN_SENS_PIN_RIGHT);
+ mid = digitalRead(LN_SENS_PIN_MIDDLE);
+ right = digitalRead(LN_SENS_PIN_LEFT);
+ rightEdge = digitalRead(LN_SENS_PIN_LEFTEDGE);
+  }
+
   speedLeft = LeftSpeed;
   speedRight = RightSpeed;
   moveForward();
@@ -231,17 +319,17 @@ void loop()
   {
     Serial.print("left turn");
     turnLeft90Degrees();
-    delay(360);
+    delay(360); //завой на ляво на 90-градуса (задава се продължителносста на завоя)
     while (rightSideDistance <= 50)
     {
       rightSideDistance = getDistance(RightServoAngle, SideServoDelay);
     }
-    speedRight = RightSpeed * .75;
-    speedLeft = LeftSpeed * .75;
+    speedRight = RightSpeed;
+    speedLeft = LeftSpeed;
     moveForward();
-    delay(500);
+    delay(700); //придвижване напред 10см (задава се продължителносста на движението)
     turnRight90Degrees();
-    delay(280);
+    delay(380);  //завой на дясно на 90-градуса (задава се продължителносста на завоя)
     getTurn = !getTurn;
   }
 
@@ -249,17 +337,17 @@ void loop()
   {
     Serial.print("right turn");
     turnRight90Degrees();
-    delay(280);
+    delay(350); //завой на дясно на 90-градуса (задава се продължителносста на завоя)
     while (leftSideDistance <= 50)
     {
       leftSideDistance = getDistance(LeftServoAngle, SideServoDelay);
     }
-    speedRight = RightSpeed * .75;
-    speedLeft = LeftSpeed * .75;
+    speedRight = RightSpeed;
+    speedLeft = LeftSpeed;
     moveForward();
-    delay(500);
+    delay(700);  //придвижване напред 10см (задава се продължителносста на движението)
     turnLeft90Degrees();
-    delay(360);
+    delay(380);   //завой на ляво на 90-градуса (задава се продължителносста на завоя)
     getTurn = !getTurn;
   }
 }
@@ -286,7 +374,7 @@ void turnLeft() // Turn Left
 {
   analogWrite(LEFT_FOR, LOW);
   analogWrite(LEFT_BACK, speedLeft);
-  analogWrite(RIGHT_FOR, speedRight);
+  analogWrite(RIGHT_FOR, speedLeft);
   analogWrite(RIGHT_BACK, LOW);
 }
 
@@ -322,6 +410,20 @@ void stopMoving() // Stop movement
   analogWrite(RIGHT_BACK, HIGH);
 }
 
+float frontThreshold()
+{
+  float distance;  
+  pinMode(UltrasonicPin, OUTPUT);
+  digitalWrite(UltrasonicPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(UltrasonicPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(UltrasonicPin, LOW);
+  pinMode(UltrasonicPin, INPUT);
+  distance = pulseIn(UltrasonicPin, HIGH) / 58.00;
+  return distance;
+}
+
 float getDistance(int servoAngle, int delayAfterServoMovement)
 {
   float distance;
@@ -341,55 +443,6 @@ float getDistance(int servoAngle, int delayAfterServoMovement)
   delay(40);
   stopMoving();
   //-----------------------
-  pinMode(UltrasonicPin, OUTPUT);
-  digitalWrite(UltrasonicPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(UltrasonicPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(UltrasonicPin, LOW);
-  pinMode(UltrasonicPin, INPUT);
-  distance = pulseIn(UltrasonicPin, HIGH) / 58.00;
-  return distance;
-}
-
-int left()
-{
-  int distance;
-  distance = digitalRead(LN_SENS_PIN_RIGHT);
-  return distance;
-}
-
-int mid()
-{
-  int distance;
-  distance = digitalRead(LN_SENS_PIN_MIDDLE);
-  return distance;
-}
-
-int right()
-{
-  int distance;
-  distance = digitalRead(LN_SENS_PIN_LEFT);
-  return distance;
-}
-
-int leftEdge()
-{
-  int distance;
-  distance = digitalRead(LN_SENS_PIN_RIGHTEDGE);
-  return distance;
-}
-
-int rightEdge()
-{
-  int distance;
-  distance = digitalRead(LN_SENS_PIN_LEFTEDGE);
-  return distance;
-}
-
-float frontThreshold()
-{
-  float distance;
   pinMode(UltrasonicPin, OUTPUT);
   digitalWrite(UltrasonicPin, LOW);
   delayMicroseconds(2);
